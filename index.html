@@ -1,78 +1,95 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | ProblemApp</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
-      <div id="unity-mobile-warning">
-        WebGL builds are not supported on mobile devices.
-      </div>
-      <div id="unity-footer">
-        <div id="unity-webgl-logo"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">ProblemApp</div>
-      </div>
-    </div>
-    <script>
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/ProblemApp.loader.js";
-      var config = {
-        dataUrl: buildUrl + "/ProblemApp.data.unityweb",
-        frameworkUrl: buildUrl + "/ProblemApp.framework.js.unityweb",
-        codeUrl: buildUrl + "/ProblemApp.wasm.unityweb",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "ProblemApp",
-        productVersion: "1.0",
-      };
+<html>
 
-      var container = document.querySelector("#unity-container");
-      var canvas = document.querySelector("#unity-canvas");
-      var loadingBar = document.querySelector("#unity-loading-bar");
-      var progressBarFull = document.querySelector("#unity-progress-bar-full");
-      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
-      var mobileWarning = document.querySelector("#unity-mobile-warning");
+<head>
+  <title>Marker Based AR with AR.js and Three.js</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.1.0/three.js/build/ar.js"></script>
+</head>
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        container.className = "unity-mobile";
-        config.devicePixelRatio = 1;
-        mobileWarning.style.display = "block";
-        setTimeout(() => {
-          mobileWarning.style.display = "none";
-        }, 5000);
-      } else {
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+<body>
+  <script>
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true
+    });
+    renderer.setClearColor(new THREE.Color(), 0);
+    renderer.setSize(640, 480);
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0px';
+    renderer.domElement.style.left = '0px';
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.visible = false;
+    const camera = new THREE.Camera();
+    scene.add(camera);
+
+    const arToolkitSource = new THREEx.ArToolkitSource({
+      sourceType: 'webcam'
+    });
+
+    arToolkitSource.init(() =>
+    {
+      setTimeout(() =>
+      {
+        onResize();
+      }, 2000);
+    });
+
+    addEventListener('resize', () =>
+    {
+      onResize();
+    });
+
+    function onResize()
+    {
+      arToolkitSource.onResizeElement();
+      arToolkitSource.copyElementSizeTo(renderer.domElement);
+      if (arToolkitContext.arController !== null)
+      {
+        arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
       }
-      loadingBar.style.display = "block";
+    };
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
-        }).then((unityInstance) => {
-          loadingBar.style.display = "none";
-          fullscreenButton.onclick = () => {
-            unityInstance.SetFullscreen(1);
-          };
-        }).catch((message) => {
-          alert(message);
-        });
-      };
-      document.body.appendChild(script);
-    </script>
-  </body>
+    const arToolkitContext = new THREEx.ArToolkitContext({
+      cameraParametersUrl: 'data/camera_para.dat',
+      detectionMode: 'mono'
+    });
+
+    arToolkitContext.init(() =>
+    {
+      camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+    });
+
+    const arMarkerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
+      type: 'pattern',
+      patternUrl: 'data/pattern.patt',
+      changeMatrixMode: 'cameraTransformMatrix'
+    });
+
+    const mesh = new THREE.Mesh(
+      new THREE.CubeGeometry(1, 1, 1),
+      new THREE.MeshNormalMaterial(),
+    );
+    mesh.position.y = 1.0;
+    scene.add(mesh);
+
+    const clock = new THREE.Clock();
+    requestAnimationFrame(function animate()
+    {
+      requestAnimationFrame(animate);
+      if (arToolkitSource.ready)
+      {
+        arToolkitContext.update(arToolkitSource.domElement);
+        scene.visible = camera.visible;
+      }
+      const delta = clock.getDelta();
+      mesh.rotation.x += delta * 1.0;
+      mesh.rotation.y += delta * 1.5;
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+
 </html>
